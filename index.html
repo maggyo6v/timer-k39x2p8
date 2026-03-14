@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
@@ -9,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="作業タイマー">
   <meta name="referrer" content="no-referrer">
-  <title>作業 / 休憩 BGM タイマー</title>
+  <title>作業 / 休憩 BGM タイマー（YouTube版）</title>
   <style>
     body {
       margin: 0;
@@ -47,7 +46,7 @@
     }
 
     input[type="number"],
-    input[type="file"] {
+    input[type="text"] {
       width: 100%;
       box-sizing: border-box;
       padding: 10px;
@@ -107,14 +106,7 @@
       background: #4a4a4a;
     }
 
-    video {
-      width: 100%;
-      margin-top: 10px;
-      border-radius: 12px;
-      background: #000;
-    }
-
-    .file-name {
+    .url-note {
       font-size: 13px;
       color: #aaa;
       margin-top: 6px;
@@ -127,22 +119,40 @@
       margin: 18px 0 10px;
       color: #eee;
     }
+
+    .player-shell {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      margin-top: 10px;
+    }
+
+    #player {
+      width: 100%;
+      height: 100%;
+    }
+
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
   <div class="app">
-    <h1>作業 / 休憩 BGM タイマー</h1>
+    <h1>作業 / 休憩 BGM タイマー（YouTube版）</h1>
 
     <div class="row">
-      <label for="workFile">作業用ファイル（mp4 / mp3）</label>
-      <input id="workFile" type="file" accept="audio/*,video/*" />
-      <div id="workFileName" class="file-name">未選択</div>
+      <label for="workUrlInput">作業用 YouTube URL</label>
+      <input id="workUrlInput" type="text" placeholder="https://www.youtube.com/watch?v=... または https://youtu.be/..." />
+      <div class="url-note">ライブ配信 / 通常動画 / プレイリストURLの video 部分に対応</div>
     </div>
 
     <div class="row">
-      <label for="breakFile">休憩用ファイル（mp4 / mp3）</label>
-      <input id="breakFile" type="file" accept="audio/*,video/*" />
-      <div id="breakFileName" class="file-name">未選択</div>
+      <label for="breakUrlInput">休憩用 YouTube URL</label>
+      <input id="breakUrlInput" type="text" placeholder="https://www.youtube.com/watch?v=... または https://youtu.be/..." />
+      <div class="url-note">動画が終わったら、下のループ開始位置に戻って再生</div>
     </div>
 
     <div class="sub-title">時間設定</div>
@@ -181,14 +191,15 @@
       <button id="resetBtn">Reset</button>
     </div>
 
-    <video id="player" controls playsinline></video>
+    <div class="player-shell">
+      <div id="player"></div>
+    </div>
   </div>
 
+  <script src="https://www.youtube.com/iframe_api"></script>
   <script>
-    const workFileInput = document.getElementById("workFile");
-    const breakFileInput = document.getElementById("breakFile");
-    const workFileName = document.getElementById("workFileName");
-    const breakFileName = document.getElementById("breakFileName");
+    const workUrlInput = document.getElementById("workUrlInput");
+    const breakUrlInput = document.getElementById("breakUrlInput");
 
     const workMinInput = document.getElementById("workMin");
     const breakMinInput = document.getElementById("breakMin");
@@ -198,7 +209,6 @@
     const statusEl = document.getElementById("status");
     const timerEl = document.getElementById("timer");
     const loopCountEl = document.getElementById("loopCount");
-    const player = document.getElementById("player");
 
     const startBtn = document.getElementById("startBtn");
     const pauseBtn = document.getElementById("pauseBtn");
@@ -206,22 +216,24 @@
     const skipBtn = document.getElementById("skipBtn");
     const resetBtn = document.getElementById("resetBtn");
 
-    let workUrl = null;
-    let breakUrl = null;
+    let player = null;
+    let playerReady = false;
+
+    let workVideoId = null;
+    let breakVideoId = null;
 
     let mode = "work";
     let remainingSeconds = 20 * 60;
     let intervalId = null;
+    let positionSaveIntervalId = null;
     let hasStarted = false;
     let isPaused = false;
     let workLoopCount = 0;
 
-    // フェーズ再開位置を記録
     let workResumeSec = 0;
     let breakResumeSec = 0;
-
-    // 今どっちのファイルを読み込んでるか
     let currentLoadedMode = null;
+    let pendingPlayRequest = null;
 
     function formatTime(sec) {
       const m = String(Math.floor(sec / 60)).padStart(2, "0");
@@ -257,7 +269,7 @@
     }
 
     function setResumeSeconds(targetMode, value) {
-      const safeValue = Math.max(0, value || 0);
+      const safeValue = Math.max(0, Number(value) || 0);
       if (targetMode === "work") {
         workResumeSec = safeValue;
       } else {
@@ -265,17 +277,59 @@
       }
     }
 
-    function getCurrentUrl() {
-      return mode === "work" ? workUrl : breakUrl;
+    function getVideoIdFromUrl(url) {
+      if (!url) return null;
+
+      try {
+        const parsed = new URL(url.trim());
+        const host = parsed.hostname.replace(/^www\./, "");
+
+        if (host === "youtu.be") {
+          const id = parsed.pathname.split("/").filter(Boolean)[0];
+          return id || null;
+        }
+
+        if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+          if (parsed.pathname === "/watch") {
+            return parsed.searchParams.get("v");
+          }
+
+          if (parsed.pathname.startsWith("/embed/")) {
+            return parsed.pathname.split("/")[2] || null;
+          }
+
+          if (parsed.pathname.startsWith("/live/")) {
+            return parsed.pathname.split("/")[2] || null;
+          }
+
+          if (parsed.pathname.startsWith("/shorts/")) {
+            return parsed.pathname.split("/")[2] || null;
+          }
+        }
+      } catch (error) {
+        return null;
+      }
+
+      return null;
+    }
+
+    function getVideoIdForMode(targetMode) {
+      return targetMode === "work" ? workVideoId : breakVideoId;
     }
 
     function saveCurrentPlaybackPosition() {
-      if (!player.src || !Number.isFinite(player.currentTime)) return;
-      setResumeSeconds(mode, player.currentTime);
+      if (!playerReady || !player || typeof player.getCurrentTime !== "function") return;
+      const currentTime = player.getCurrentTime();
+      if (!Number.isFinite(currentTime)) return;
+      setResumeSeconds(mode, currentTime);
     }
 
     function getSafeSeekTime(targetMode, preferredTime) {
-      const duration = player.duration;
+      if (!playerReady || !player || typeof player.getDuration !== "function") {
+        return Math.max(0, preferredTime || getLoopStartSeconds(targetMode) || 0);
+      }
+
+      const duration = player.getDuration();
       const fallback = getLoopStartSeconds(targetMode);
 
       if (!Number.isFinite(duration) || duration <= 0) {
@@ -283,45 +337,10 @@
       }
 
       if (preferredTime >= duration) {
-        return Math.min(fallback, Math.max(0, duration - 0.01));
+        return Math.min(fallback, Math.max(0, duration - 0.5));
       }
 
       return Math.max(0, preferredTime || 0);
-    }
-
-    function loadMediaForMode(targetMode, seekTime) {
-      const url = targetMode === "work" ? workUrl : breakUrl;
-
-      if (!url) {
-        alert(targetMode === "work" ? "作業用ファイルを選んで" : "休憩用ファイルを選んで");
-        return false;
-      }
-
-      const shouldReload = currentLoadedMode !== targetMode || player.src !== url;
-
-      const applySeekAndPlay = () => {
-        const safeSeek = getSafeSeekTime(targetMode, seekTime);
-        player.currentTime = safeSeek;
-        setResumeSeconds(targetMode, safeSeek);
-        if (!isPaused) {
-          player.play().catch(console.error);
-        }
-      };
-
-      if (shouldReload) {
-        currentLoadedMode = targetMode;
-        player.src = url;
-        player.load();
-
-        player.onloadedmetadata = () => {
-          applySeekAndPlay();
-          player.onloadedmetadata = null;
-        };
-      } else {
-        applySeekAndPlay();
-      }
-
-      return true;
     }
 
     function clearTimer() {
@@ -331,9 +350,24 @@
       }
     }
 
+    function clearPositionSaver() {
+      if (positionSaveIntervalId) {
+        clearInterval(positionSaveIntervalId);
+        positionSaveIntervalId = null;
+      }
+    }
+
     function startInterval() {
       clearTimer();
       intervalId = setInterval(tick, 1000);
+    }
+
+    function startPositionSaver() {
+      clearPositionSaver();
+      positionSaveIntervalId = setInterval(() => {
+        if (!hasStarted || isPaused) return;
+        saveCurrentPlaybackPosition();
+      }, 1000);
     }
 
     function tick() {
@@ -345,9 +379,50 @@
       }
     }
 
+    function playLoadedVideoAt(targetMode, seekTime) {
+      const safeSeek = getSafeSeekTime(targetMode, seekTime);
+      setResumeSeconds(targetMode, safeSeek);
+      player.seekTo(safeSeek, true);
+      if (!isPaused) {
+        player.playVideo();
+      }
+    }
+
+    function loadMediaForMode(targetMode, seekTime) {
+      const videoId = getVideoIdForMode(targetMode);
+
+      if (!videoId) {
+        alert(targetMode === "work" ? "作業用 YouTube URL を入れて" : "休憩用 YouTube URL を入れて");
+        return false;
+      }
+
+      if (!playerReady || !player) {
+        pendingPlayRequest = { targetMode, seekTime };
+        return true;
+      }
+
+      const shouldReload = currentLoadedMode !== targetMode;
+
+      if (shouldReload) {
+        currentLoadedMode = targetMode;
+        player.loadVideoById({
+          videoId,
+          startSeconds: getSafeSeekTime(targetMode, seekTime)
+        });
+        setResumeSeconds(targetMode, getSafeSeekTime(targetMode, seekTime));
+      } else {
+        playLoadedVideoAt(targetMode, seekTime);
+      }
+
+      return true;
+    }
+
     function startApp() {
-      if (!workUrl || !breakUrl) {
-        alert("作業用と休憩用のファイルを両方選んで");
+      workVideoId = getVideoIdFromUrl(workUrlInput.value);
+      breakVideoId = getVideoIdFromUrl(breakUrlInput.value);
+
+      if (!workVideoId || !breakVideoId) {
+        alert("作業用と休憩用の YouTube URL を両方入れて");
         return;
       }
 
@@ -357,7 +432,6 @@
       remainingSeconds = getDurationSeconds("work");
       workLoopCount = 0;
 
-      // 最初の開始時だけ、開始位置から
       setResumeSeconds("work", getLoopStartSeconds("work"));
       setResumeSeconds("break", getLoopStartSeconds("break"));
 
@@ -365,22 +439,24 @@
 
       updateDisplay();
       startInterval();
+      startPositionSaver();
     }
 
     function pauseApp() {
-      if (!hasStarted) return;
+      if (!hasStarted || !playerReady) return;
       saveCurrentPlaybackPosition();
       isPaused = true;
       clearTimer();
-      player.pause();
+      player.pauseVideo();
       updateDisplay();
     }
 
     function resumeApp() {
-      if (!hasStarted) return;
+      if (!hasStarted || !playerReady) return;
       isPaused = false;
-      player.play().catch(console.error);
+      player.playVideo();
       startInterval();
+      startPositionSaver();
       updateDisplay();
     }
 
@@ -408,9 +484,11 @@
 
     function resetApp() {
       clearTimer();
-      player.pause();
-      player.removeAttribute("src");
-      player.load();
+      clearPositionSaver();
+
+      if (playerReady && player && typeof player.stopVideo === "function") {
+        player.stopVideo();
+      }
 
       mode = "work";
       remainingSeconds = getDurationSeconds("work");
@@ -420,53 +498,57 @@
       workResumeSec = 0;
       breakResumeSec = 0;
       currentLoadedMode = null;
+      pendingPlayRequest = null;
 
       statusEl.textContent = "STOPPED";
       timerEl.textContent = formatTime(remainingSeconds);
       loopCountEl.textContent = "作業ループ: 0回";
     }
 
-    // 曲が終わったら、そのフェーズの「ループ開始位置」に戻る
-    player.addEventListener("ended", () => {
-      if (!hasStarted) return;
+    function onPlayerReady() {
+      playerReady = true;
 
-      const loopStart = getLoopStartSeconds(mode);
-      const safeSeek = getSafeSeekTime(mode, loopStart);
-
-      setResumeSeconds(mode, safeSeek);
-      player.currentTime = safeSeek;
-
-      if (!isPaused) {
-        player.play().catch(console.error);
+      if (pendingPlayRequest) {
+        const { targetMode, seekTime } = pendingPlayRequest;
+        pendingPlayRequest = null;
+        loadMediaForMode(targetMode, seekTime);
       }
-    });
+    }
 
-    // 再生中は現在位置を記録し続ける
-    player.addEventListener("timeupdate", () => {
+    function onPlayerStateChange(event) {
       if (!hasStarted) return;
-      if (!Number.isFinite(player.currentTime)) return;
-      setResumeSeconds(mode, player.currentTime);
-    });
 
-    workFileInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+      if (event.data === YT.PlayerState.ENDED) {
+        const loopStart = getLoopStartSeconds(mode);
+        const safeSeek = getSafeSeekTime(mode, loopStart);
+        setResumeSeconds(mode, safeSeek);
+        player.seekTo(safeSeek, true);
+        if (!isPaused) {
+          player.playVideo();
+        }
+      }
 
-      if (workUrl) URL.revokeObjectURL(workUrl);
-      workUrl = URL.createObjectURL(file);
-      workFileName.textContent = file.name;
-      workResumeSec = getLoopStartSeconds("work");
-    });
+      if (event.data === YT.PlayerState.PLAYING) {
+        startPositionSaver();
+      }
+    }
 
-    breakFileInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      if (breakUrl) URL.revokeObjectURL(breakUrl);
-      breakUrl = URL.createObjectURL(file);
-      breakFileName.textContent = file.name;
-      breakResumeSec = getLoopStartSeconds("break");
-    });
+    window.onYouTubeIframeAPIReady = function () {
+      player = new YT.Player("player", {
+        width: "100%",
+        height: "100%",
+        videoId: "",
+        playerVars: {
+          playsinline: 1,
+          rel: 0,
+          modestbranding: 1
+        },
+        events: {
+          onReady: onPlayerReady,
+          onStateChange: onPlayerStateChange
+        }
+      });
+    };
 
     workMinInput.addEventListener("input", () => {
       if (!hasStarted && mode === "work") {
