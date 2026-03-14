@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="作業タイマー">
+  <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+  <meta name="referrer" content="no-referrer">
+  <title>作業 / 休憩 BGM タイマー</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #111;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .app {
+      width: min(760px, 92vw);
+      background: #1b1b1b;
+      border-radius: 16px;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 28px;
+    }
+
+    .row {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    input[type="number"],
+    input[type="file"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #444;
+      background: #222;
+      color: #fff;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .status {
+      text-align: center;
+      margin: 24px 0 10px;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .timer {
+      text-align: center;
+      font-size: 64px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    .count {
+      text-align: center;
+      font-size: 18px;
+      color: #bbb;
+      margin-bottom: 20px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      background: #3a3a3a;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #4a4a4a;
+    }
+
+    video {
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 12px;
+      background: #000;
+    }
+
+    .file-name {
+      font-size: 13px;
+      color: #aaa;
+      margin-top: 6px;
+      word-break: break-all;
+    }
+
+    .sub-title {
+      font-size: 15px;
+      font-weight: bold;
+      margin: 18px 0 10px;
+      color: #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>作業 / 休憩 BGM タイマー</h1>
+
+    <div class="row">
+      <label for="workFile">作業用ファイル（mp4 / mp3）</label>
+      <input id="workFile" type="file" accept="audio/*,video/*" />
+      <div id="workFileName" class="file-name">未選択</div>
+    </div>
+
+    <div class="row">
+      <label for="breakFile">休憩用ファイル（mp4 / mp3）</label>
+      <input id="breakFile" type="file" accept="audio/*,video/*" />
+      <div id="breakFileName" class="file-name">未選択</div>
+    </div>
+
+    <div class="sub-title">時間設定</div>
+    <div class="row grid-2">
+      <div>
+        <label for="workMin">作業時間（分）</label>
+        <input id="workMin" type="number" min="1" value="20" />
+      </div>
+      <div>
+        <label for="breakMin">休憩時間（分）</label>
+        <input id="breakMin" type="number" min="1" value="10" />
+      </div>
+    </div>
+
+    <div class="sub-title">曲が終わったときのループ開始位置</div>
+    <div class="row grid-2">
+      <div>
+        <label for="workStartSec">作業BGM ループ開始位置（秒）</label>
+        <input id="workStartSec" type="number" min="0" value="0" />
+      </div>
+      <div>
+        <label for="breakStartSec">休憩BGM ループ開始位置（秒）</label>
+        <input id="breakStartSec" type="number" min="0" value="0" />
+      </div>
+    </div>
+
+    <div id="status" class="status">STOPPED</div>
+    <div id="timer" class="timer">20:00</div>
+    <div id="loopCount" class="count">作業ループ: 0回</div>
+
+    <div class="buttons">
+      <button id="startBtn">Start</button>
+      <button id="pauseBtn">Pause</button>
+      <button id="resumeBtn">Resume</button>
+      <button id="skipBtn">Skip</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+
+    <video id="player" controls playsinline preload="auto"></video>
+  </div>
+
+  <script>
+    const workFileInput = document.getElementById("workFile");
+    const breakFileInput = document.getElementById("breakFile");
+    const workFileName = document.getElementById("workFileName");
+    const breakFileName = document.getElementById("breakFileName");
+
+    const workMinInput = document.getElementById("workMin");
+    const breakMinInput = document.getElementById("breakMin");
+    const workStartSecInput = document.getElementById("workStartSec");
+    const breakStartSecInput = document.getElementById("breakStartSec");
+
+    const statusEl = document.getElementById("status");
+    const timerEl = document.getElementById("timer");
+    const loopCountEl = document.getElementById("loopCount");
+    const player = document.getElementById("player");
+
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resumeBtn = document.getElementById("resumeBtn");
+    const skipBtn = document.getElementById("skipBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let workUrl = null;
+    let breakUrl = null;
+
+    let mode = "work";
+    let remainingSeconds = 20 * 60;
+    let intervalId = null;
+    let hasStarted = false;
+    let isPaused = false;
+    let workLoopCount = 0;
+
+    let workResumeSec = 0;
+    let breakResumeSec = 0;
+    let currentLoadedMode = null;
+
+    function formatTime(sec) {
+      const m = String(Math.floor(sec / 60)).padStart(2, "0");
+      const s = String(sec % 60).padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    function updateDisplay() {
+      timerEl.textContent = formatTime(remainingSeconds);
+
+      if (!hasStarted) {
+        statusEl.textContent = "STOPPED";
+      } else if (isPaused) {
+        statusEl.textContent = `${mode.toUpperCase()} / PAUSED`;
+      } else {
+        statusEl.textContent = mode === "work" ? "WORK" : "BREAK";
+      }
+
+      loopCountEl.textContent = `作業ループ: ${workLoopCount}回`;
+    }
+
+    function getDurationSeconds(targetMode) {
+      return Number(targetMode === "work" ? workMinInput.value : breakMinInput.value) * 60;
+    }
+
+    function getLoopStartSeconds(targetMode) {
+      const value = Number(targetMode === "work" ? workStartSecInput.value : breakStartSecInput.value);
+      return Math.max(0, value || 0);
+    }
+
+    function getResumeSeconds(targetMode) {
+      return targetMode === "work" ? workResumeSec : breakResumeSec;
+    }
+
+    function setResumeSeconds(targetMode, value) {
+      const safeValue = Math.max(0, value || 0);
+      if (targetMode === "work") {
+        workResumeSec = safeValue;
+      } else {
+        breakResumeSec = safeValue;
+      }
+    }
+
+    function saveCurrentPlaybackPosition() {
+      if (!player.src || !Number.isFinite(player.currentTime)) return;
+      setResumeSeconds(mode, player.currentTime);
+    }
+
+    function getSafeSeekTime(targetMode, preferredTime) {
+      const duration = player.duration;
+      const fallback = getLoopStartSeconds(targetMode);
+
+      if (!Number.isFinite(duration) || duration <= 0) {
+        return Math.max(0, preferredTime || fallback || 0);
+      }
+
+      if (preferredTime >= duration) {
+        return Math.min(fallback, Math.max(0, duration - 0.01));
+      }
+
+      return Math.max(0, preferredTime || 0);
+    }
+
+    function loadMediaForMode(targetMode, seekTime) {
+      const url = targetMode === "work" ? workUrl : breakUrl;
+
+      if (!url) {
+        alert(targetMode === "work" ? "作業用ファイルを選んで" : "休憩用ファイルを選んで");
+        return false;
+      }
+
+      const shouldReload = currentLoadedMode !== targetMode || player.src !== url;
+
+      const applySeekAndPlay = () => {
+        const safeSeek = getSafeSeekTime(targetMode, seekTime);
+        player.currentTime = safeSeek;
+        setResumeSeconds(targetMode, safeSeek);
+        if (!isPaused) {
+          player.play().catch(console.error);
+        }
+      };
+
+      if (shouldReload) {
+        currentLoadedMode = targetMode;
+        player.src = url;
+        player.load();
+
+        player.onloadedmetadata = () => {
+          applySeekAndPlay();
+          player.onloadedmetadata = null;
+        };
+      } else {
+        applySeekAndPlay();
+      }
+
+      return true;
+    }
+
+    function clearTimer() {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    }
+
+    function startInterval() {
+      clearTimer();
+      intervalId = setInterval(tick, 1000);
+    }
+
+    function tick() {
+      if (remainingSeconds > 0) {
+        remainingSeconds--;
+        timerEl.textContent = formatTime(remainingSeconds);
+      } else {
+        switchMode();
+      }
+    }
+
+    function startApp() {
+      if (!workUrl || !breakUrl) {
+        alert("作業用と休憩用のファイルを両方選んで");
+        return;
+      }
+
+      hasStarted = true;
+      isPaused = false;
+      mode = "work";
+      remainingSeconds = getDurationSeconds("work");
+      workLoopCount = 0;
+
+      setResumeSeconds("work", getLoopStartSeconds("work"));
+      setResumeSeconds("break", getLoopStartSeconds("break"));
+
+      if (!loadMediaForMode("work", getResumeSeconds("work"))) return;
+
+      updateDisplay();
+      startInterval();
+    }
+
+    function pauseApp() {
+      if (!hasStarted) return;
+      saveCurrentPlaybackPosition();
+      isPaused = true;
+      clearTimer();
+      player.pause();
+      updateDisplay();
+    }
+
+    function resumeApp() {
+      if (!hasStarted) return;
+      isPaused = false;
+      player.play().catch(console.error);
+      startInterval();
+      updateDisplay();
+    }
+
+    function switchMode() {
+      saveCurrentPlaybackPosition();
+
+      const previousMode = mode;
+      mode = mode === "work" ? "break" : "work";
+      remainingSeconds = getDurationSeconds(mode);
+
+      if (mode === "break") {
+        breakResumeSec = getLoopStartSeconds("break");
+      }
+
+      if (mode === "work" && previousMode === "break") {
+        workLoopCount++;
+      }
+
+      if (!loadMediaForMode(mode, getResumeSeconds(mode))) return;
+
+      isPaused = false;
+      updateDisplay();
+    }
+
+    function skipPhase() {
+      if (!hasStarted) return;
+      switchMode();
+    }
+
+    function resetApp() {
+      clearTimer();
+      player.pause();
+      player.removeAttribute("src");
+      player.load();
+
+      mode = "work";
+      remainingSeconds = getDurationSeconds("work");
+      hasStarted = false;
+      isPaused = false;
+      workLoopCount = 0;
+      workResumeSec = 0;
+      breakResumeSec = 0;
+      currentLoadedMode = null;
+
+      statusEl.textContent = "STOPPED";
+      timerEl.textContent = formatTime(remainingSeconds);
+      loopCountEl.textContent = "作業ループ: 0回";
+    }
+
+    player.addEventListener("ended", () => {
+      if (!hasStarted) return;
+
+      const loopStart = getLoopStartSeconds(mode);
+      const safeSeek = getSafeSeekTime(mode, loopStart);
+
+      setResumeSeconds(mode, safeSeek);
+      player.currentTime = safeSeek;
+
+      if (!isPaused) {
+        player.play().catch(console.error);
+      }
+    });
+
+    player.addEventListener("timeupdate", () => {
+      if (!hasStarted) return;
+      if (!Number.isFinite(player.currentTime)) return;
+      setResumeSeconds(mode, player.currentTime);
+    });
+
+    workFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (workUrl) URL.revokeObjectURL(workUrl);
+      workUrl = URL.createObjectURL(file);
+      workFileName.textContent = file.name;
+      workResumeSec = getLoopStartSeconds("work");
+    });
+
+    breakFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (breakUrl) URL.revokeObjectURL(breakUrl);
+      breakUrl = URL.createObjectURL(file);
+      breakFileName.textContent = file.name;
+      breakResumeSec = getLoopStartSeconds("break");
+    });
+
+    workMinInput.addEventListener("input", () => {
+      if (!hasStarted && mode === "work") {
+        remainingSeconds = getDurationSeconds("work");
+        timerEl.textContent = formatTime(remainingSeconds);
+      }
+    });
+
+    breakMinInput.addEventListener("input", () => {
+      if (!hasStarted && mode === "break") {
+        remainingSeconds = getDurationSeconds("break");
+        timerEl.textContent = formatTime(remainingSeconds);
+      }
+    });
+
+    workStartSecInput.addEventListener("input", () => {
+      if (!hasStarted) {
+        workResumeSec = getLoopStartSeconds("work");
+      }
+    });
+
+    breakStartSecInput.addEventListener("input", () => {
+      if (!hasStarted) {
+        breakResumeSec = getLoopStartSeconds("break");
+      }
+    });
+
+    startBtn.addEventListener("click", startApp);
+    pauseBtn.addEventListener("click", pauseApp);
+    resumeBtn.addEventListener("click", resumeApp);
+    skipBtn.addEventListener("click", skipPhase);
+    resetBtn.addEventListener("click", resetApp);
+
+    timerEl.textContent = formatTime(remainingSeconds);
+    loopCountEl.textContent = "作業ループ: 0回";
+  </script>
+</body>
+</html>
