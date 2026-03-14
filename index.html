@@ -219,6 +219,10 @@
     let player = null;
     let playerReady = false;
 
+
+    const STORAGE_KEY = "work-break-timer-youtube-v1";
+
+
     let workVideoId = null;
     let breakVideoId = null;
 
@@ -235,6 +239,43 @@
     let currentLoadedMode = null;
     let pendingPlayRequest = null;
 
+
+    function saveSettings() {
+      const data = {
+        workUrl: workUrlInput.value.trim(),
+        breakUrl: breakUrlInput.value.trim(),
+        workMin: workMinInput.value,
+        breakMin: breakMinInput.value,
+        workStartSec: workStartSecInput.value,
+        breakStartSec: breakStartSecInput.value
+      };
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (error) {
+        console.error("設定保存失敗", error);
+      }
+    }
+
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+
+        const data = JSON.parse(raw);
+        if (!data || typeof data !== "object") return;
+
+        if (typeof data.workUrl === "string") workUrlInput.value = data.workUrl;
+        if (typeof data.breakUrl === "string") breakUrlInput.value = data.breakUrl;
+        if (data.workMin !== undefined) workMinInput.value = data.workMin;
+        if (data.breakMin !== undefined) breakMinInput.value = data.breakMin;
+        if (data.workStartSec !== undefined) workStartSecInput.value = data.workStartSec;
+        if (data.breakStartSec !== undefined) breakStartSecInput.value = data.breakStartSec;
+      } catch (error) {
+        console.error("設定読込失敗", error);
+      }
+    }
+
     function formatTime(sec) {
       const m = String(Math.floor(sec / 60)).padStart(2, "0");
       const s = String(sec % 60).padStart(2, "0");
@@ -242,7 +283,9 @@
     }
 
     function updateDisplay() {
-      timerEl.textContent = formatTime(remainingSeconds);
+      loadSettings();
+
+    timerEl.textContent = formatTime(remainingSeconds);
 
       if (!hasStarted) {
         statusEl.textContent = "STOPPED";
@@ -576,12 +619,23 @@
       }
     });
 
+
+    workUrlInput.addEventListener("input", saveSettings);
+    breakUrlInput.addEventListener("input", saveSettings);
+    workMinInput.addEventListener("input", saveSettings);
+    breakMinInput.addEventListener("input", saveSettings);
+    workStartSecInput.addEventListener("input", saveSettings);
+    breakStartSecInput.addEventListener("input", saveSettings);
+
     startBtn.addEventListener("click", startApp);
     pauseBtn.addEventListener("click", pauseApp);
     resumeBtn.addEventListener("click", resumeApp);
     skipBtn.addEventListener("click", skipPhase);
     resetBtn.addEventListener("click", resetApp);
 
+    remainingSeconds = getDurationSeconds("work");
+    workResumeSec = getLoopStartSeconds("work");
+    breakResumeSec = getLoopStartSeconds("break");
     timerEl.textContent = formatTime(remainingSeconds);
     loopCountEl.textContent = "作業ループ: 0回";
   </script>
