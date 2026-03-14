@@ -527,22 +527,26 @@
       updateDisplay();
     }
 
-    function switchMode() {
-      saveCurrentPlaybackPosition();
+	function switchMode() {
+	  saveCurrentPlaybackPosition();
 
-      const previousMode = mode;
-      mode = mode === "work" ? "break" : "work";
-      remainingSeconds = getDurationSeconds(mode);
+	  const previousMode = mode;
+	  mode = mode === "work" ? "break" : "work";
+	  remainingSeconds = getDurationSeconds(mode);
 
-      if (mode === "work" && previousMode === "break") {
-        workLoopCount++;
-      }
+	  if (mode === "break") {
+		breakResumeSec = 0;
+	  }
 
-      if (!loadVideoForMode(mode, getResumeSeconds(mode))) return;
+	  if (mode === "work" && previousMode === "break") {
+		workLoopCount++;
+	  }
 
-      isPaused = false;
-      updateDisplay();
-    }
+	  if (!loadVideoForMode(mode, getResumeSeconds(mode))) return;
+
+	  isPaused = false;
+	  updateDisplay();
+	}
 
     function skipPhase() {
       if (!hasStarted) return;
