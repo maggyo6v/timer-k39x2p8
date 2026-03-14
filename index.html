@@ -1,648 +1,84 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="noindex,nofollow" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-  <meta name="apple-mobile-web-app-title" content="作業タイマー" />
-  <meta name="referrer" content="no-referrer" />
-  <title>作業 / 休憩 YouTube タイマー</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #111;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="作業タイマー">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+<meta name="referrer" content="no-referrer">
 
-    .app {
-      width: min(860px, 92vw);
-      background: #1b1b1b;
-      border-radius: 16px;
-      padding: 24px;
-      box-sizing: border-box;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    }
+<title>作業タイマー</title>
 
-    h1 {
-      margin: 0 0 18px;
-      font-size: 28px;
-    }
+<style>
 
-    .row {
-      margin-bottom: 16px;
-    }
+body{
+margin:0;
+font-family:sans-serif;
+background:#111;
+color:white;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
 
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 14px;
-      color: #ccc;
-    }
+.app{
+width:320px;
+text-align:center;
+}
 
-    input[type="number"],
-    input[type="text"] {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #444;
-      background: #222;
-      color: #fff;
-      font-size: 15px;
-    }
+h1{
+font-size:28px;
+margin-bottom:30px;
+}
 
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
+.button{
+display:block;
+padding:16px;
+margin-bottom:14px;
+border-radius:12px;
+background:#2a2a2a;
+color:white;
+text-decoration:none;
+font-size:16px;
+}
 
-    .status {
-      text-align: center;
-      margin: 24px 0 10px;
-      font-size: 20px;
-      font-weight: bold;
-      letter-spacing: 1px;
-    }
+.button:hover{
+background:#3a3a3a;
+}
 
-    .timer {
-      text-align: center;
-      font-size: 64px;
-      font-weight: bold;
-      margin-bottom: 12px;
-    }
+.note{
+font-size:13px;
+color:#aaa;
+margin-top:20px;
+}
 
-    .count {
-      text-align: center;
-      font-size: 18px;
-      color: #bbb;
-      margin-bottom: 20px;
-    }
-
-    .buttons {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-
-    button {
-      padding: 10px 16px;
-      border: none;
-      border-radius: 10px;
-      background: #3a3a3a;
-      color: white;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    button:hover {
-      background: #4a4a4a;
-    }
-
-    .sub-title {
-      font-size: 15px;
-      font-weight: bold;
-      margin: 18px 0 10px;
-      color: #eee;
-    }
-
-    #playerWrap {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      margin-top: 10px;
-      border-radius: 12px;
-      overflow: hidden;
-      background: #000;
-    }
-
-    #player {
-      width: 100%;
-      height: 100%;
-    }
-
-    .hint-box {
-      margin-top: 20px;
-      background: #222;
-      border: 1px solid #333;
-      border-radius: 12px;
-      padding: 14px;
-      line-height: 1.6;
-      color: #ddd;
-      font-size: 14px;
-    }
-
-    .hint-box code {
-      display: block;
-      white-space: pre-wrap;
-      word-break: break-all;
-      background: #161616;
-      border: 1px solid #333;
-      padding: 10px;
-      border-radius: 10px;
-      color: #fff;
-      margin-top: 8px;
-    }
-
-    .muted {
-      color: #aaa;
-      font-size: 13px;
-    }
-
-    @media (max-width: 700px) {
-      .grid-2 {
-        grid-template-columns: 1fr;
-      }
-
-      .timer {
-        font-size: 52px;
-      }
-    }
-  </style>
+</style>
 </head>
+
 <body>
-  <div class="app">
-    <h1>作業 / 休憩 YouTube タイマー</h1>
-	
-    <div class="row">
-      <label for="workUrlInput">作業用 YouTube URL</label>
-      <input id="workUrlInput" type="text" placeholder="https://www.youtube.com/watch?v=..." />
-    </div>
 
-    <div class="row">
-      <label for="breakUrlInput">休憩用 YouTube URL</label>
-      <input id="breakUrlInput" type="text" placeholder="https://www.youtube.com/watch?v=..." />
-    </div>
+<div class="app">
 
-    <div class="sub-title">時間設定</div>
-    <div class="row grid-2">
-      <div>
-        <label for="workMin">作業時間（分）</label>
-        <input id="workMin" type="number" min="1" value="20" />
-      </div>
-      <div>
-        <label for="breakMin">休憩時間（分）</label>
-        <input id="breakMin" type="number" min="1" value="10" />
-      </div>
-    </div>
+<h1>作業タイマー</h1>
 
-    <div class="sub-title">曲が終わったときのループ開始位置</div>
-    <div class="row grid-2">
-      <div>
-        <label for="workStartSec">作業BGM ループ開始位置（秒）</label>
-        <input id="workStartSec" type="number" min="0" value="0" />
-      </div>
-      <div>
-        <label for="breakStartSec">休憩BGM ループ開始位置（秒）</label>
-        <input id="breakStartSec" type="number" min="0" value="0" />
-      </div>
-    </div>
+<a class="button" href="youtube.html">
+PC用（YouTube版）
+</a>
 
-    <div id="status" class="status">STOPPED</div>
-    <div id="timer" class="timer">20:00</div>
-    <div id="loopCount" class="count">作業ループ: 0回</div>
+<a class="button" href="local.html">
+iPhone用（ローカル版）
+</a>
 
-    <div class="buttons">
-      <button id="startBtn">Start</button>
-      <button id="pauseBtn">Pause</button>
-      <button id="resumeBtn">Resume</button>
-      <button id="skipBtn">Skip</button>
-      <button id="resetBtn">Reset</button>
-      <button id="copyLinkBtn">URLをコピー</button>
-    </div>
+<div class="note">
+PCではYouTube版、  
+iPhoneではローカル版がおすすめ。
+</div>
 
-    <div id="playerWrap">
-      <div id="player"></div>
-    </div>
+</div>
 
-    <div class="hint-box">
-      <strong>URL指定の使い方</strong><br />
-      このページは、URLの末尾にパラメータを付けると初期値を指定できます。<br />
-      使うパラメータは下の6つ。
-      <code>?w=作業用動画ID&b=休憩用動画ID&wm=作業分&bm=休憩分&ws=作業開始秒&bs=休憩開始秒</code>
-      例：
-      <code id="sharePreview"></code>
-      <div class="muted">
-        w = 作業動画ID / b = 休憩動画ID / wm = 作業時間（分） / bm = 休憩時間（分） / ws = 作業ループ開始秒 / bs = 休憩ループ開始秒<br />
-        YouTubeの動画IDは、たとえば <code style="display:inline; margin:0; padding:2px 6px;">https://youtu.be/jfKfPfyJRdk</code> の <code style="display:inline; margin:0; padding:2px 6px;">jfKfPfyJRdk</code> の部分。
-      </div>
-    </div>
-  </div>
-
-  <script src="https://www.youtube.com/iframe_api"></script>
-  <script>
-    const workUrlInput = document.getElementById("workUrlInput");
-    const breakUrlInput = document.getElementById("breakUrlInput");
-    const workMinInput = document.getElementById("workMin");
-    const breakMinInput = document.getElementById("breakMin");
-    const workStartSecInput = document.getElementById("workStartSec");
-    const breakStartSecInput = document.getElementById("breakStartSec");
-
-    const statusEl = document.getElementById("status");
-    const timerEl = document.getElementById("timer");
-    const loopCountEl = document.getElementById("loopCount");
-    const sharePreviewEl = document.getElementById("sharePreview");
-
-    const startBtn = document.getElementById("startBtn");
-    const pauseBtn = document.getElementById("pauseBtn");
-    const resumeBtn = document.getElementById("resumeBtn");
-    const skipBtn = document.getElementById("skipBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const copyLinkBtn = document.getElementById("copyLinkBtn");
-
-    let player = null;
-    let mode = "work";
-    let remainingSeconds = 20 * 60;
-    let intervalId = null;
-    let hasStarted = false;
-    let isPaused = false;
-    let workLoopCount = 0;
-
-    let workResumeSec = 0;
-    let breakResumeSec = 0;
-    let currentLoadedMode = null;
-    let ytReady = false;
-
-    const STORAGE_KEYS = {
-      workUrl: "ytTimer_workUrl",
-      breakUrl: "ytTimer_breakUrl",
-      workMin: "ytTimer_workMin",
-      breakMin: "ytTimer_breakMin",
-      workStartSec: "ytTimer_workStartSec",
-      breakStartSec: "ytTimer_breakStartSec"
-    };
-
-    function formatTime(sec) {
-      const m = String(Math.floor(sec / 60)).padStart(2, "0");
-      const s = String(sec % 60).padStart(2, "0");
-      return `${m}:${s}`;
-    }
-
-    function sanitizePositiveInt(value, fallback) {
-      const n = Number(value);
-      return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
-    }
-
-    function updateDisplay() {
-      timerEl.textContent = formatTime(remainingSeconds);
-
-      if (!hasStarted) {
-        statusEl.textContent = "STOPPED";
-      } else if (isPaused) {
-        statusEl.textContent = `${mode.toUpperCase()} / PAUSED`;
-      } else {
-        statusEl.textContent = mode === "work" ? "WORK" : "BREAK";
-      }
-
-      loopCountEl.textContent = `作業ループ: ${workLoopCount}回`;
-    }
-
-    function getDurationSeconds(targetMode) {
-      return Number(targetMode === "work" ? workMinInput.value : breakMinInput.value) * 60;
-    }
-
-    function getLoopStartSeconds(targetMode) {
-      const value = Number(targetMode === "work" ? workStartSecInput.value : breakStartSecInput.value);
-      return Math.max(0, value || 0);
-    }
-
-    function getResumeSeconds(targetMode) {
-      return targetMode === "work" ? workResumeSec : breakResumeSec;
-    }
-
-    function setResumeSeconds(targetMode, value) {
-      const safeValue = Math.max(0, value || 0);
-      if (targetMode === "work") {
-        workResumeSec = safeValue;
-      } else {
-        breakResumeSec = safeValue;
-      }
-    }
-
-    function extractVideoId(value) {
-      if (!value) return "";
-      const input = value.trim();
-
-      if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
-        return input;
-      }
-
-      try {
-        const url = new URL(input);
-        if (url.hostname.includes("youtu.be")) {
-          return url.pathname.split("/").filter(Boolean)[0] || "";
-        }
-        if (url.searchParams.get("v")) {
-          return url.searchParams.get("v");
-        }
-        const parts = url.pathname.split("/").filter(Boolean);
-        const shortsIndex = parts.indexOf("shorts");
-        if (shortsIndex >= 0 && parts[shortsIndex + 1]) return parts[shortsIndex + 1];
-        const liveIndex = parts.indexOf("live");
-        if (liveIndex >= 0 && parts[liveIndex + 1]) return parts[liveIndex + 1];
-        return "";
-      } catch (_) {
-        return "";
-      }
-    }
-
-    function normalizeUrlFromInput(value) {
-      const id = extractVideoId(value);
-      return id ? `https://youtu.be/${id}` : value.trim();
-    }
-
-    function saveSettings() {
-      localStorage.setItem(STORAGE_KEYS.workUrl, normalizeUrlFromInput(workUrlInput.value));
-      localStorage.setItem(STORAGE_KEYS.breakUrl, normalizeUrlFromInput(breakUrlInput.value));
-      localStorage.setItem(STORAGE_KEYS.workMin, workMinInput.value);
-      localStorage.setItem(STORAGE_KEYS.breakMin, breakMinInput.value);
-      localStorage.setItem(STORAGE_KEYS.workStartSec, workStartSecInput.value);
-      localStorage.setItem(STORAGE_KEYS.breakStartSec, breakStartSecInput.value);
-      updateSharePreview();
-    }
-
-    function loadSavedSettings() {
-      workUrlInput.value = localStorage.getItem(STORAGE_KEYS.workUrl) || "";
-      breakUrlInput.value = localStorage.getItem(STORAGE_KEYS.breakUrl) || "";
-      workMinInput.value = localStorage.getItem(STORAGE_KEYS.workMin) || "20";
-      breakMinInput.value = localStorage.getItem(STORAGE_KEYS.breakMin) || "10";
-      workStartSecInput.value = localStorage.getItem(STORAGE_KEYS.workStartSec) || "0";
-      breakStartSecInput.value = localStorage.getItem(STORAGE_KEYS.breakStartSec) || "0";
-    }
-
-    function applyUrlParams() {
-      const params = new URLSearchParams(location.search);
-
-      const workId = params.get("w");
-      const breakId = params.get("b");
-      const workMin = params.get("wm");
-      const breakMin = params.get("bm");
-      const workSec = params.get("ws");
-      const breakSec = params.get("bs");
-
-      if (workId) workUrlInput.value = `https://youtu.be/${workId}`;
-      if (breakId) breakUrlInput.value = `https://youtu.be/${breakId}`;
-      if (workMin) workMinInput.value = String(Math.max(1, sanitizePositiveInt(workMin, 20)));
-      if (breakMin) breakMinInput.value = String(Math.max(1, sanitizePositiveInt(breakMin, 10)));
-      if (workSec) workStartSecInput.value = String(sanitizePositiveInt(workSec, 0));
-      if (breakSec) breakStartSecInput.value = String(sanitizePositiveInt(breakSec, 0));
-    }
-
-    function buildShareUrl() {
-      const workId = extractVideoId(workUrlInput.value);
-      const breakId = extractVideoId(breakUrlInput.value);
-      const params = new URLSearchParams();
-
-      if (workId) params.set("w", workId);
-      if (breakId) params.set("b", breakId);
-      params.set("wm", String(Math.max(1, sanitizePositiveInt(workMinInput.value, 20))));
-      params.set("bm", String(Math.max(1, sanitizePositiveInt(breakMinInput.value, 10))));
-      params.set("ws", String(sanitizePositiveInt(workStartSecInput.value, 0)));
-      params.set("bs", String(sanitizePositiveInt(breakStartSecInput.value, 0)));
-
-      return `${location.origin}${location.pathname}?${params.toString()}`;
-    }
-
-    function updateSharePreview() {
-      sharePreviewEl.textContent = buildShareUrl();
-    }
-
-    async function copyShareUrl() {
-      const url = buildShareUrl();
-      try {
-        await navigator.clipboard.writeText(url);
-        copyLinkBtn.textContent = "コピー済み";
-        setTimeout(() => {
-          copyLinkBtn.textContent = "URLをコピー";
-        }, 1200);
-      } catch (_) {
-        window.prompt("このURLをコピーして使って", url);
-      }
-    }
-
-    function clearTimer() {
-      if (intervalId) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    }
-
-    function startInterval() {
-      clearTimer();
-      intervalId = setInterval(tick, 1000);
-    }
-
-    function tick() {
-      if (remainingSeconds > 0) {
-        remainingSeconds--;
-        timerEl.textContent = formatTime(remainingSeconds);
-      } else {
-        switchMode();
-      }
-    }
-
-    function loadVideoForMode(targetMode, seekTime) {
-      const videoId = extractVideoId(targetMode === "work" ? workUrlInput.value : breakUrlInput.value);
-
-      if (!videoId) {
-        alert(targetMode === "work" ? "作業用のYouTube URLを入れて" : "休憩用のYouTube URLを入れて");
-        return false;
-      }
-
-      if (!ytReady || !player) {
-        alert("YouTubeプレイヤーの準備中。少し待ってもう一度Startして");
-        return false;
-      }
-
-      const shouldLoad = currentLoadedMode !== targetMode;
-      currentLoadedMode = targetMode;
-      const safeSeek = Math.max(0, seekTime || 0);
-      setResumeSeconds(targetMode, safeSeek);
-
-      if (shouldLoad) {
-        player.loadVideoById({ videoId, startSeconds: safeSeek });
-      } else {
-        player.seekTo(safeSeek, true);
-        if (!isPaused) {
-          player.playVideo();
-        }
-      }
-
-      return true;
-    }
-
-    function saveCurrentPlaybackPosition() {
-      if (!player || typeof player.getCurrentTime !== "function") return;
-      const currentTime = player.getCurrentTime();
-      if (!Number.isFinite(currentTime)) return;
-      setResumeSeconds(mode, currentTime);
-    }
-
-    function startApp() {
-      saveSettings();
-
-      if (!extractVideoId(workUrlInput.value) || !extractVideoId(breakUrlInput.value)) {
-        alert("作業用と休憩用のYouTube URLを両方入れて");
-        return;
-      }
-
-      hasStarted = true;
-      isPaused = false;
-      mode = "work";
-      remainingSeconds = getDurationSeconds("work");
-      workLoopCount = 0;
-
-      setResumeSeconds("work", getLoopStartSeconds("work"));
-      setResumeSeconds("break", getLoopStartSeconds("break"));
-
-      if (!loadVideoForMode("work", getResumeSeconds("work"))) return;
-
-      updateDisplay();
-      startInterval();
-    }
-
-    function pauseApp() {
-      if (!hasStarted) return;
-      saveCurrentPlaybackPosition();
-      isPaused = true;
-      clearTimer();
-      if (player && typeof player.pauseVideo === "function") player.pauseVideo();
-      updateDisplay();
-    }
-
-    function resumeApp() {
-      if (!hasStarted) return;
-      isPaused = false;
-      if (player && typeof player.playVideo === "function") player.playVideo();
-      startInterval();
-      updateDisplay();
-    }
-
-    function switchMode() {
-      saveCurrentPlaybackPosition();
-
-      const previousMode = mode;
-      mode = mode === "work" ? "break" : "work";
-      remainingSeconds = getDurationSeconds(mode);
-	  
-	  if (mode === "break") {
-		breakResumeSec = 0;
-	  }
-	
-      if (mode === "work" && previousMode === "break") {
-        workLoopCount++;
-      }
-
-      if (!loadVideoForMode(mode, getResumeSeconds(mode))) return;
-
-      isPaused = false;
-      updateDisplay();
-    }
-
-    function skipPhase() {
-      if (!hasStarted) return;
-      switchMode();
-    }
-
-    function resetApp() {
-      clearTimer();
-      if (player && typeof player.stopVideo === "function") player.stopVideo();
-
-      mode = "work";
-      remainingSeconds = getDurationSeconds("work");
-      hasStarted = false;
-      isPaused = false;
-      workLoopCount = 0;
-      workResumeSec = 0;
-      breakResumeSec = 0;
-      currentLoadedMode = null;
-
-      statusEl.textContent = "STOPPED";
-      timerEl.textContent = formatTime(remainingSeconds);
-      loopCountEl.textContent = "作業ループ: 0回";
-    }
-
-    function onPlayerReady() {
-      ytReady = true;
-    }
-
-    function onPlayerStateChange(event) {
-      if (!hasStarted || !player) return;
-
-      if (event.data === YT.PlayerState.ENDED) {
-        const loopStart = getLoopStartSeconds(mode);
-        setResumeSeconds(mode, loopStart);
-        player.seekTo(loopStart, true);
-        if (!isPaused) {
-          player.playVideo();
-        }
-      }
-    }
-
-    function bootstrapPlayer() {
-      player = new YT.Player("player", {
-        width: "100%",
-        height: "100%",
-        videoId: "",
-        playerVars: {
-          autoplay: 0,
-          controls: 1,
-          playsinline: 1,
-          rel: 0,
-          modestbranding: 1
-        },
-        events: {
-          onReady: onPlayerReady,
-          onStateChange: onPlayerStateChange
-        }
-      });
-    }
-
-    window.onYouTubeIframeAPIReady = bootstrapPlayer;
-
-    [workUrlInput, breakUrlInput, workMinInput, breakMinInput, workStartSecInput, breakStartSecInput].forEach((el) => {
-      el.addEventListener("input", () => {
-        saveSettings();
-        if (!hasStarted) {
-          if (mode === "work") {
-            remainingSeconds = getDurationSeconds("work");
-          } else {
-            remainingSeconds = getDurationSeconds("break");
-          }
-          updateDisplay();
-        }
-      });
-    });
-
-    workStartSecInput.addEventListener("input", () => {
-      if (!hasStarted) workResumeSec = getLoopStartSeconds("work");
-    });
-
-    breakStartSecInput.addEventListener("input", () => {
-      if (!hasStarted) breakResumeSec = getLoopStartSeconds("break");
-    });
-
-    startBtn.addEventListener("click", startApp);
-    pauseBtn.addEventListener("click", pauseApp);
-    resumeBtn.addEventListener("click", resumeApp);
-    skipBtn.addEventListener("click", skipPhase);
-    resetBtn.addEventListener("click", resetApp);
-    copyLinkBtn.addEventListener("click", copyShareUrl);
-
-    loadSavedSettings();
-    applyUrlParams();
-    saveSettings();
-    remainingSeconds = getDurationSeconds("work");
-    updateDisplay();
-    updateSharePreview();
-  </script>
 </body>
 </html>
