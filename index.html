@@ -269,7 +269,6 @@
     let workResumeSec = 0;
     let breakResumeSec = 0;
     let currentLoadedMode = null;
-    let pendingPlayRequest = null;
     let ytReady = false;
 
     const STORAGE_KEYS = {
@@ -459,8 +458,8 @@
       }
 
       if (!ytReady || !player) {
-        pendingPlayRequest = { targetMode, seekTime };
-        return true;
+        alert("YouTubeプレイヤーの準備中。少し待ってもう一度Startして");
+        return false;
       }
 
       const shouldLoad = currentLoadedMode !== targetMode;
@@ -527,26 +526,26 @@
       updateDisplay();
     }
 
-	function switchMode() {
-	  saveCurrentPlaybackPosition();
+    function switchMode() {
+      saveCurrentPlaybackPosition();
 
-	  const previousMode = mode;
-	  mode = mode === "work" ? "break" : "work";
-	  remainingSeconds = getDurationSeconds(mode);
-
+      const previousMode = mode;
+      mode = mode === "work" ? "break" : "work";
+      remainingSeconds = getDurationSeconds(mode);
+	  
 	  if (mode === "break") {
 		breakResumeSec = 0;
 	  }
+	
+      if (mode === "work" && previousMode === "break") {
+        workLoopCount++;
+      }
 
-	  if (mode === "work" && previousMode === "break") {
-		workLoopCount++;
-	  }
+      if (!loadVideoForMode(mode, getResumeSeconds(mode))) return;
 
-	  if (!loadVideoForMode(mode, getResumeSeconds(mode))) return;
-
-	  isPaused = false;
-	  updateDisplay();
-	}
+      isPaused = false;
+      updateDisplay();
+    }
 
     function skipPhase() {
       if (!hasStarted) return;
@@ -573,11 +572,6 @@
 
     function onPlayerReady() {
       ytReady = true;
-      if (pendingPlayRequest) {
-        const req = pendingPlayRequest;
-        pendingPlayRequest = null;
-        loadVideoForMode(req.targetMode, req.seekTime);
-      }
     }
 
     function onPlayerStateChange(event) {
